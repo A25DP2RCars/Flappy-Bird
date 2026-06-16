@@ -45,7 +45,7 @@ function loop() {
         ctx.font = "30px Arial";
         ctx.fillText("Spēle Beigusies!", 90, 280);
         ctx.font = "20px Arial";
-        ctx.fillText("Nospied Space, lai sāktu vēlreiz", 50, 330);
+        ctx.fillText("Nospied SPACE, lai sāktu vēlreiz", 50, 330);
         return;
     }
 

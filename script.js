@@ -49,7 +49,6 @@ function loop() {
         return;
     }
 
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     velocity += gravity;
@@ -74,7 +73,6 @@ function loop() {
     for (let i = pipes.length - 1; i >= 0; i--) {
         pipes[i].x -= pipeSpeed;
 
-
         ctx.fillStyle = "green";
         ctx.fillRect(pipes[i].x, 0, pipeWidth, pipes[i].top);
 
@@ -88,19 +86,18 @@ function loop() {
             gameOver = true;
         }
 
-
         if (!pipes[i].passed && pipes[i].x + pipeWidth < birdX) {
             score++;
             pipes[i].passed = true;
         }
 
-
+        // Noņem caurules, kas izgājušas no ekrāna
         if (pipes[i].x + pipeWidth < 0) {
             pipes.splice(i, 1);
         }
     }
 
-if (birdY + birdSize > canvas.height || birdY - birdSize < 0) {
+    if (birdY + birdSize > canvas.height || birdY - birdSize < 0) {
         gameOver = true;
     }
 

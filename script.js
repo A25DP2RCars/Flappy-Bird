@@ -4,10 +4,10 @@ const ctx = canvas.getContext("2d");
 const GRAVITY = 0.25;
 const FLAP = -5.5;
 const PIPE_SPEED = 2.5;
-const GAP = 140; // Размер прохода между трубами
+const GAP = 140; 
 
 let bird = {
-    x: 100, // Смещена левее, чтобы видеть больше труб впереди
+    x: 100,
     y: 250,
     velocity: 0,
     radius: 14

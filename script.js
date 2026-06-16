@@ -1,112 +1,190 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-let birdY = 300;
-let birdX = 50;
-let velocity = 0;
-const gravity = 0.4;
-const jump = -7;
-const birdSize = 20;
+const GRAVITY = 0.25;
+const FLAP = -5.5;
+const PIPE_SPEED = 2.5;
+const GAP = 140; // Размер прохода между трубами
+
+let bird = {
+    x: 100, // Смещена левее, чтобы видеть больше труб впереди
+    y: 250,
+    velocity: 0,
+    radius: 14
+};
 
 let pipes = [];
-const pipeWidth = 60;
-const pipeGap = 150;
-const pipeSpeed = 2;
-let frameCount = 0;
-
 let score = 0;
+let highScore = localStorage.getItem("flappy_highScore") || 0;
 let gameOver = false;
+let gameStarted = false;
 
-document.addEventListener("keydown", (e) => {
+window.addEventListener("keydown", (e) => {
     if (e.code === "Space") {
-        if (gameOver) resetGame();
-        else velocity = jump;
+        jump();
     }
 });
-canvas.addEventListener("click", () => {
-    if (gameOver) resetGame();
-    else velocity = jump;
+
+window.addEventListener("touchstart", () => {
+    jump();
 });
 
+function jump() {
+    if (gameOver) {
+        resetGame();
+        return;
+    }
+    if (!gameStarted) {
+        gameStarted = true;
+    }
+    bird.velocity = FLAP;
+}
+
+function spawnPipe() {
+    let minHeight = 50;
+    let maxHeight = canvas.height - GAP - 50;
+    let topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+
+    pipes.push({
+        x: canvas.width,
+        top: topHeight,
+        bottom: canvas.height - topHeight - GAP,
+        passed: false
+    });
+}
+
 function resetGame() {
-    birdY = 300;
-    velocity = 0;
+    bird.y = 250;
+    bird.velocity = 0;
     pipes = [];
     score = 0;
     gameOver = false;
-    loop();
+    gameStarted = false;
+    spawnPipe();
 }
 
-function loop() {
-    if (gameOver) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "white";
-        ctx.font = "30px Arial";
-        ctx.fillText("Spēle Beigusies!", 90, 280);
-        ctx.font = "20px Arial";
-        ctx.fillText("Nospied SPACE, lai sāktu vēlreiz", 50, 330);
-        return;
+function update() {
+    if (gameStarted && !gameOver) {
+        // Физика птички
+        bird.velocity += GRAVITY;
+        bird.y += bird.velocity;
+
+        // Проверка столкновения с землей или потолком
+        if (bird.y + bird.radius >= canvas.height || bird.y - bird.radius <= 0) {
+            endGame();
+        }
+
+        for (let i = pipes.length - 1; i >= 0; i--) {
+            pipes[i].x -= PIPE_SPEED;
+
+            if (
+                bird.x + bird.radius > pipes[i].x &&
+                bird.x - bird.radius < pipes[i].x + 60
+            ) {
+                if (bird.y - bird.radius < pipes[i].top || bird.y + bird.radius > canvas.height - pipes[i].bottom) {
+                    endGame();
+                }
+            }
+
+            if (!pipes[i].passed && pipes[i].x + 30 < bird.x) {
+                score++;
+                pipes[i].passed = true;
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem("flappy_highScore", highScore);
+                }
+            }
+
+            if (pipes[i].x + 60 < 0) {
+                pipes.splice(i, 1);
+            }
+        }
+
+        let lastPipe = pipes[pipes.length - 1];
+        if (!lastPipe || canvas.width - lastPipe.x >= (canvas.width / 2.5)) {
+            spawnPipe();
+        }
     }
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    draw();
+    requestAnimationFrame(update);
+}
 
-    velocity += gravity;
-    birdY += velocity;
+function draw() {
+    // Очистка экрана (небо)
+    ctx.fillStyle = "#70c5ce";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillStyle = "yellow";
+    // Рисуем трубы
+    ctx.fillStyle = "#73bf2e";
+    pipes.forEach(pipe => {
+        // Верхняя труба
+        ctx.fillRect(pipe.x, 0, 60, pipe.top);
+        ctx.strokeStyle = "#538122";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(pipe.x, 0, 60, pipe.top);
+
+        // Нижняя труба
+        ctx.fillRect(pipe.x, canvas.height - pipe.bottom, 60, pipe.bottom);
+        ctx.strokeRect(pipe.x, canvas.height - pipe.bottom, 60, pipe.bottom);
+    });
+
+    ctx.fillStyle = "#f7d346"; // Желтое тело
     ctx.beginPath();
-    ctx.arc(birdX, birdY, birdSize, 0, Math.PI * 2);
+    ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI * 2);
     ctx.fill();
-
-    if (frameCount % 100 === 0) {
-        let topPipeHeight = Math.floor(Math.random() * (canvas.height - pipeGap - 100)) + 50;
-        pipes.push({
-            x: canvas.width,
-            top: topPipeHeight,
-            bottom: canvas.height - topPipeHeight - pipeGap,
-            passed: false
-        });
-    }
-    frameCount++;
-
-    for (let i = pipes.length - 1; i >= 0; i--) {
-        pipes[i].x -= pipeSpeed;
-
-        ctx.fillStyle = "green";
-        ctx.fillRect(pipes[i].x, 0, pipeWidth, pipes[i].top);
-
-        ctx.fillRect(pipes[i].x, canvas.height - pipes[i].bottom, pipeWidth, pipes[i].bottom);
-
-        if (
-            birdX + birdSize > pipes[i].x &&
-            birdX - birdSize < pipes[i].x + pipeWidth &&
-            (birdY - birdSize < pipes[i].top || birdY + birdSize > canvas.height - pipes[i].bottom)
-        ) {
-            gameOver = true;
-        }
-
-        if (!pipes[i].passed && pipes[i].x + pipeWidth < birdX) {
-            score++;
-            pipes[i].passed = true;
-        }
-
-        // Noņem caurules, kas izgājušas no ekrāna
-        if (pipes[i].x + pipeWidth < 0) {
-            pipes.splice(i, 1);
-        }
-    }
-
-    if (birdY + birdSize > canvas.height || birdY - birdSize < 0) {
-        gameOver = true;
-    }
-
+    ctx.strokeStyle = "#d1a100";
+    ctx.stroke();
 
     ctx.fillStyle = "white";
-    ctx.font = "30px Arial";
-    ctx.fillText("Punkti: " + score, 10, 40);
+    ctx.beginPath();
+    ctx.arc(bird.x + 6, bird.y - 4, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "black";
+    ctx.beginPath();
+    ctx.arc(bird.x + 7, bird.y - 4, 1.5, 0, Math.PI * 2);
+    ctx.fill();
 
-    requestAnimationFrame(loop);
+    ctx.fillStyle = "#f67e2a";
+    ctx.beginPath();
+    ctx.moveTo(bird.x + 12, bird.y - 2);
+    ctx.lineTo(bird.x + 22, bird.y + 2);
+    ctx.lineTo(bird.x + 11, bird.y + 6);
+    ctx.fill();
+
+    ctx.fillStyle = "white";
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = "black";
+    ctx.font = "bold 24px Arial";
+   
+    ctx.strokeText(`Очки: ${score}`, 20, 40);
+    ctx.fillText(`Очки: ${score}`, 20, 40);
+
+    ctx.strokeText(`Рекорд: ${highScore}`, canvas.width - 180, 40);
+    ctx.fillText(`Рекорд: ${highScore}`, canvas.width - 180, 40);
+
+    if (!gameStarted && !gameOver) {
+        ctx.font = "bold 30px Arial";
+        ctx.strokeText("Нажми ПРОБЕЛ, чтобы лететь", canvas.width / 2 - 210, canvas.height / 2);
+        ctx.fillText("Нажми ПРОБЕЛ, чтобы лететь", canvas.width / 2 - 210, canvas.height / 2);
+    }
+
+    if (gameOver) {
+        ctx.font = "bold 40px Arial";
+        ctx.fillStyle = "#e74c3c";
+        ctx.strokeText("ИГРА ОКОНЧЕНА", canvas.width / 2 - 160, canvas.height / 2 - 20);
+        ctx.fillText("ИГРА ОКОНЧЕНА", canvas.width / 2 - 160, canvas.height / 2 - 20);
+       
+        ctx.font = "bold 24px Arial";
+        ctx.fillStyle = "white";
+        ctx.strokeText("Нажми ПРОБЕЛ для перезапуска", canvas.width / 2 - 190, canvas.height / 2 + 30);
+        ctx.fillText("Нажми ПРОБЕЛ для перезапуска", canvas.width / 2 - 190, canvas.height / 2 + 30);
+    }
 }
 
-loop();
+function endGame() {
+    gameOver = true;
+}
+
+spawnPipe();
+update();
